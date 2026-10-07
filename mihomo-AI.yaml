@@ -1,0 +1,246 @@
+# ============================================================================
+#  mihomo (Clash.Meta) 配置 · 分层分流 + AI 优先
+#  分层顺序即优先级（命中即停）：L0 本地 → L2 AI → L3 大分类
+#                                    → L4 国内直连 → L5 兜底
+#  规则集在 rules/mihomo/，type: file，运行时不访问 GitHub。不含广告拦截。
+#  设计说明 / 验证方法 / 常见坑：见同目录 README.md
+# ============================================================================
+
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+ipv6: false
+unified-delay: true
+tcp-concurrent: true
+global-client-fingerprint: chrome
+keep-alive-interval: 30
+external-controller: 127.0.0.1:9090
+
+profile:
+  store-selected: true
+  store-fake-ip: true
+
+# 域名嗅探：所有域名类规则（尤其 AI 域名集）都依赖它，必须开
+sniffer:
+  enable: true
+  sniff:
+    HTTP:
+      ports: [80, 8080-8880]
+      override-destination: true
+    TLS:
+      ports: [443, 8443]
+    QUIC:
+      ports: [443, 8443]
+  skip-domain:
+    - "+.apple.com"
+    - "Mijia Cloud"
+
+dns:
+  enable: true
+  ipv6: false
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter:
+    - "*.lan"
+    - "+.local"
+    - "localhost.ptlogin2.qq.com"
+    - "+.msftconnecttest.com"
+    - "+.msftncsi.com"
+    - "+.stun.*.*"
+    - "time.*.com"
+    - "xbox.*.microsoft.com"
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  nameserver:
+    - https://223.5.5.5/dns-query
+    - https://1.12.12.12/dns-query
+  proxy-server-nameserver:
+    - https://223.5.5.5/dns-query
+  # 分流式 DNS：国内域名用国内 DoH，国外域名用国外 DoH，避免污染与解析绕路
+  nameserver-policy:
+    "rule-set:cn,private":
+      - https://223.5.5.5/dns-query
+      - https://1.12.12.12/dns-query
+    "rule-set:geolocation-not-cn":
+      - https://1.1.1.1/dns-query
+      - https://8.8.8.8/dns-query
+
+# ── 订阅 ────────────────────────────────────────────────────────────────────
+# <<< 必改 >>> 把 url 换成你自己的订阅链接
+proxy-providers:
+  sub:
+    type: http
+    url: "https://example.com/your-subscription-url"
+    interval: 3600
+    path: ./providers/sub.yaml
+    health-check:
+      enable: true
+      url: http://www.gstatic.com/generate_204
+      interval: 300
+
+# 若没有订阅、只手工填节点：注释掉上面的 proxy-providers，
+# 取消下面 proxies 的注释并填入真实节点，再把各组的 `use: [sub]` 删掉。
+# proxies:
+#   - {name: "🇺🇸 AI-US-01", type: ss, server: 1.2.3.4, port: 443, cipher: aes-256-gcm, password: "YOUR_PASSWORD", udp: true}
+
+# ── 策略组 ──────────────────────────────────────────────────────────────────
+proxy-groups:
+  # 通用：url-test 按延迟自动切换，只服务「非 AI」流量
+  - name: 🚀 节点选择
+    type: select
+    use: [sub]
+    proxies: [⚡ 自动测速, DIRECT]
+
+  - name: ⚡ 自动测速
+    type: url-test
+    use: [sub]
+    url: http://www.gstatic.com/generate_204
+    interval: 600
+    tolerance: 50
+
+  # 只绑定订阅里名字正好是 AI节点 的那一台。select 不会自动换节点。
+  - name: 🤖 AI 服务
+    type: select
+    use: [sub]
+    filter: "^AI节点$"
+
+# ── 本地规则集。path 相对本文件所在目录，运行时不下载 ─────────────────────
+rule-providers:
+  ai-not-cn:
+    type: file
+    behavior: domain
+    format: text
+    path: ./rules/mihomo/category-ai-not-cn.list
+  openai:
+    type: file
+    behavior: domain
+    format: text
+    path: ./rules/mihomo/openai.list
+  anthropic:
+    type: file
+    behavior: domain
+    format: text
+    path: ./rules/mihomo/anthropic.list
+  google-gemini:
+    type: file
+    behavior: domain
+    format: text
+    path: ./rules/mihomo/google-gemini.list
+  aina:
+    type: file
+    behavior: classical
+    format: text
+    path: ./rules/mihomo/AINA.txt
+  google:
+    type: file
+    behavior: domain
+    format: text
+    path: ./rules/mihomo/google.list
+  youtube:
+    type: file
+    behavior: domain
+    format: text
+    path: ./rules/mihomo/youtube.list
+  telegram:
+    type: file
+    behavior: domain
+    format: text
+    path: ./rules/mihomo/telegram.list
+  github:
+    type: file
+    behavior: domain
+    format: text
+    path: ./rules/mihomo/github.list
+  microsoft:
+    type: file
+    behavior: domain
+    format: text
+    path: ./rules/mihomo/microsoft.list
+  apple:
+    type: file
+    behavior: domain
+    format: text
+    path: ./rules/mihomo/apple.list
+  cn:
+    type: file
+    behavior: domain
+    format: text
+    path: ./rules/mihomo/cn.list
+  private:
+    type: file
+    behavior: domain
+    format: text
+    path: ./rules/mihomo/private.list
+  geolocation-not-cn:
+    type: file
+    behavior: domain
+    format: text
+    path: ./rules/mihomo/geolocation-not-cn.list
+  geoip-cn:
+    type: file
+    behavior: ipcidr
+    format: text
+    path: ./rules/mihomo/geoip-cn.list
+
+# ── 规则 ────────────────────────────────────────────────────────────────────
+rules:
+  # ══ L0 本地 / 私有 ══
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,100.64.0.0/10,DIRECT,no-resolve
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - DOMAIN-SUFFIX,local,DIRECT
+
+  # ══ L2a 境内 AI → DIRECT ══
+  # 境内 AI 走代理会变慢、掉线甚至不可用。虽然 cn 规则集多半也覆盖，
+  # 但显式写死才有确定性，不受规则集更新影响。
+  - DOMAIN-SUFFIX,deepseek.com,DIRECT
+  - DOMAIN-SUFFIX,doubao.com,DIRECT
+  - DOMAIN-SUFFIX,volces.com,DIRECT
+  - DOMAIN-SUFFIX,volcengineapi.com,DIRECT
+  - DOMAIN-SUFFIX,moonshot.cn,DIRECT
+  - DOMAIN-SUFFIX,kimi.com,DIRECT
+  - DOMAIN-SUFFIX,tongyi.aliyun.com,DIRECT
+  - DOMAIN-SUFFIX,dashscope.aliyuncs.com,DIRECT
+  - DOMAIN-SUFFIX,bailian.aliyun.com,DIRECT
+  - DOMAIN-SUFFIX,zhipuai.cn,DIRECT
+  - DOMAIN-SUFFIX,bigmodel.cn,DIRECT
+  - DOMAIN-SUFFIX,chatglm.cn,DIRECT
+  - DOMAIN-SUFFIX,yiyan.baidu.com,DIRECT
+  - DOMAIN-SUFFIX,qianfan.baidubce.com,DIRECT
+  - DOMAIN-SUFFIX,hunyuan.tencent.com,DIRECT
+  - DOMAIN-SUFFIX,minimaxi.com,DIRECT
+  - DOMAIN-SUFFIX,stepfun.com,DIRECT
+  - DOMAIN-SUFFIX,lingyiwanwu.com,DIRECT
+  - DOMAIN-SUFFIX,baichuan-ai.com,DIRECT
+  - DOMAIN-SUFFIX,xinghuo.xfyun.cn,DIRECT
+  - DOMAIN-SUFFIX,xfyun.cn,DIRECT
+  - DOMAIN-SUFFIX,siliconflow.cn,DIRECT
+  - DOMAIN-SUFFIX,modelscope.cn,DIRECT
+  - DOMAIN-SUFFIX,sensetime.com,DIRECT
+
+  # ══ L2b 境外 AI ══【必须排在 google / microsoft / apple 之前】
+  - RULE-SET,ai-not-cn,🤖 AI 服务
+  - RULE-SET,openai,🤖 AI 服务
+  - RULE-SET,anthropic,🤖 AI 服务
+  - RULE-SET,google-gemini,🤖 AI 服务
+  - RULE-SET,aina,🤖 AI 服务
+
+  # ══ L3 大分类 ══
+  - RULE-SET,google,🚀 节点选择
+  - RULE-SET,youtube,🚀 节点选择
+  - RULE-SET,telegram,🚀 节点选择
+  - RULE-SET,github,🚀 节点选择
+  - RULE-SET,microsoft,DIRECT
+  - RULE-SET,apple,DIRECT
+
+  # ══ L4 国内直连 ══
+  - RULE-SET,cn,DIRECT
+  - RULE-SET,geoip-cn,DIRECT,no-resolve
+
+  # ══ L5 兜底 ══
+  - MATCH,🚀 节点选择
