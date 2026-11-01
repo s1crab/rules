@@ -14,6 +14,9 @@ DOMAIN,accounts.x.ai
 DOMAIN,accounts.spacex.ai
 DOMAIN-SUFFIX,spacex.ai
 DOMAIN,connectors-gateway.grok.com
-DOMAIN-SUFFIX,grokusercontent.com
+DOMAIN,auth.grokusercontent.com
 DOMAIN-SUFFIX,grokipedia.com
+# api5 / gcpp apex NXDOMAIN; use working hosts (cursor.sh suffix also covers)
+DOMAIN-KEYWORD,api5.cursor.sh
+DOMAIN,us-only.gcpp.cursor.sh
 DOMAIN,anysphere-binaries.s3.us-east-1.amazonaws.com
