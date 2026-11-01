@@ -1,6 +1,6 @@
 # ============================================================================
 #  mihomo (Clash.Meta) 配置 · 分层分流 + AI 优先
-#  分层顺序即优先级（命中即停）：L0 本地 → L2 AI → L3 大分类
+#  分层顺序即优先级（命中即停）：L0 本地 → L2a/L2b/L2c AI → L3 大分类
 #                                    → L4 国内直连 → L5 兜底
 #  规则集在 rules/mihomo/，type: file，运行时不访问 GitHub。不含广告拦截。
 #  设计说明 / 验证方法 / 常见坑：见同目录 README.md
@@ -133,6 +133,11 @@ rule-providers:
     behavior: classical
     format: text
     path: ./rules/mihomo/AINA.txt
+  cursor:
+    type: file
+    behavior: domain
+    format: text
+    path: ./rules/mihomo/cursor.list
   google:
     type: file
     behavior: domain
@@ -229,6 +234,10 @@ rules:
   - RULE-SET,anthropic,🤖 AI 服务
   - RULE-SET,google-gemini,🤖 AI 服务
   - RULE-SET,aina,🤖 AI 服务
+
+  # ══ L2c Cursor / Grok Bot ══【必须排在 google / microsoft / apple 之前；勿进 cn DIRECT】
+  # 官方：https://cursor.com/docs/grok-bot/proxies
+  - RULE-SET,cursor,🤖 AI 服务
 
   # ══ L3 大分类 ══
   - RULE-SET,google,🚀 节点选择

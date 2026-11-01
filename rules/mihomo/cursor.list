@@ -1,0 +1,16 @@
+# Cursor / Grok Bot — PROXY via 🤖 AI 服务
+# Official: https://cursor.com/docs/grok-bot/proxies
+#           https://cursor.com/docs/enterprise/network-configuration
+# mihomo domain behavior: +.suffix matches the suffix and all nested hosts.
+# Exact hosts without +.
+
++.cursor.sh
++.cursorvm.com
++.cursor.com
++.cursor-cdn.com
++.cursorapi.com
+accounts.x.ai
+accounts.spacex.ai
++.spacex.ai
+connectors-gateway.grok.com
+anysphere-binaries.s3.us-east-1.amazonaws.com
