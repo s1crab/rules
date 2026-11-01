@@ -1,6 +1,6 @@
 # 代理规则整理方案 · 分层分流 + AI 优先
 
-一套可直接导入的两份配置，按同一套设计原则产出一致的分组名与规则顺序。规则是 2026-10-06 的快照，放在本仓库里。Shadowrocket 通过本仓库的 raw 地址引用；mihomo 读取同目录文件。两边都不再请求上游仓库。不含广告拦截。
+一套可直接导入的两份配置，按同一套设计原则产出一致的分组名与规则顺序。规则是 2026-10-06 的快照，放在本仓库里（含后续 Cursor / Grok Bot 补丁）。**本仓库当前为私有**：小火箭用 `raw.githubusercontent.com` 拉 RULE-SET / 配置 URL 时，未带 PAT 会失败。推荐把 `shadowrocket-AI.conf` 整文件复制进 App / iCloud；mihomo 读取同目录本地文件，不受影响。两边都不再请求上游规则仓库。不含广告拦截。
 
 | 文件 | 客户端 |
 |---|---|
@@ -11,7 +11,7 @@
 
 ## 一、什么叫「科学」：四条判据
 
-1. **单一事实来源** —— 规则以本仓库里的文件为准。mihomo 用 `rules/mihomo/`。Shadowrocket 不认本地路径，所以 `RULE-SET` 指向 `github.com/s1crab/rules` 的 raw 地址，而不是上游仓库。
+1. **单一事实来源** —— 规则以本仓库里的文件为准。mihomo 用 `rules/mihomo/`（`type: file`，运行时不访问 GitHub）。Shadowrocket 不认本地路径：历史 RULE-SET 仍指向 `github.com/s1crab/rules` 的 raw；**私有仓库时 raw 拉不到**，Cursor / Grok Bot 规则已改为 **内联在 `.conf`**，单文件导入即可用。
 2. **分层 + 优先级明确** —— 规则自上而下匹配，命中即停，**顺序就是语义**。
 3. **匹配维度与意图匹配** —— 该用域名的用域名，只有静态服务和私网才用 IP。
 4. **可观测、可回滚** —— 能查出某个请求命中了哪条规则；配置进 git，改坏能回退。
@@ -29,6 +29,7 @@
 | L0 | 私网 CIDR、`.local` | DIRECT | 必须最先，否则内网设备会被代理 |
 | L2a | **境内 AI** 域名（DeepSeek、豆包、Kimi、通义…） | DIRECT | 境内 AI 走代理会变慢、掉线甚至不可用 |
 | L2b | **境外 AI** 规则集 | 🤖 AI 服务 | **必须早于 L3**，见下 |
+| L2c | **Cursor / Grok Bot**（内联 + `cursor.list`） | 🤖 AI 服务 | **必须早于 L3**；勿进 L4 国内直连 |
 | L3 | Google / YouTube / Telegram / GitHub / Microsoft / Apple | 代理或直连 | 用途明确、地区不敏感 |
 | L4 | `ChinaMax` / `GEOSITE,cn` + `GEOIP,CN` | DIRECT | 国内直连，避免绕路 |
 | L5 | `FINAL` / `MATCH` | 🚀 节点选择 | 兜底：新站点自动可用 |
@@ -70,7 +71,7 @@ Shadowrocket 的境外 AI 在 `rules/shadowrocket/ai.list`（含 Apple Intellige
 
 覆盖的服务：ChatGPT / OpenAI、Claude / Anthropic、Gemini / AI Studio / DeepMind /
 NotebookLM、Microsoft Copilot、GitHub Copilot、Grok / x.ai、OpenRouter、Perplexity、
-Apple Intelligence。
+Apple Intelligence、**Cursor / Grok Bot（L2c）**。
 
 **容易被漏掉、但漏了会「功能异常」的第三方依赖**：
 
@@ -83,7 +84,44 @@ livekit.cloud              # 语音/实时对话
 
 很多人规则只抄主域名，结果「感觉模型变笨了 / 语音不能用」——原因通常在这里。
 
-### 3.4 DNS 与 QUIC
+### 3.4 Cursor / Grok Bot（L2c）
+
+官方域名与 TLS / 流式要求见：
+
+- [Configure TLS-inspecting proxies](https://cursor.com/docs/grok-bot/proxies)
+- [Enterprise network configuration](https://cursor.com/docs/enterprise/network-configuration)
+
+| 模式 | Shadowrocket | mihomo |
+|---|---|---|
+| 主路径 | **内联** `DOMAIN-SUFFIX` / `DOMAIN` 于 `shadowrocket-AI.conf`（私有仓也能单文件导入） | `RULE-SET,cursor` → `rules/mihomo/cursor.list` |
+| 维护副本 | `rules/shadowrocket/cursor.list`（公开镜像或带 PAT 时可改 RULE-SET） | 同上 |
+
+**覆盖清单（优先宽匹配）**：
+
+| 规则 | 覆盖 |
+|---|---|
+| `DOMAIN-SUFFIX,cursor.sh` | `*.cursor.sh`（chat / 登录 / 审批 / API） |
+| `DOMAIN-SUFFIX,cursorvm.com` | `*.cursorvm.com` **与** 嵌套 `*.*.cursorvm.com`（后缀匹配足够） |
+| `DOMAIN-SUFFIX,cursor.com` | `cursor.com`、`*.cursor.com`、`downloads.cursor.com` |
+| `DOMAIN-SUFFIX,cursor-cdn.com` | 静态资源 |
+| `DOMAIN-SUFFIX,cursorapi.com` | 扩展市场等 API |
+| `DOMAIN,accounts.x.ai` / `DOMAIN,accounts.spacex.ai` + `DOMAIN-SUFFIX,spacex.ai` | 登录相关（`x.ai` 已在 `ai.list`） |
+| `DOMAIN,connectors-gateway.grok.com` | Connector 网关（`grok.com` 后缀已在 `ai.list`，显式列出便于核对） |
+| `DOMAIN,anysphere-binaries.s3.us-east-1.amazonaws.com` | 客户端更新包 |
+
+**推荐用法（手机 / Shadowrocket）**：
+
+1. 打开 **TUN / 增强模式**，让非代理感知的 App（含 Grok Bot 桌面若走系统扩展）的流量进规则。
+2. AI 组固定单节点（本方案已设），避免出口 IP 横跳。
+3. **规则无法在手机上强制「绕过公司网关的 TLS 解密 / 响应缓冲」**。若公司 SWG（Zscaler 等）仍在做 SSL inspection 或缓冲 SSE/HTTP2，聊天或 `cursorvm` 建连仍会挂；那是网关侧配置问题，见官方文档的 bypass / streaming 要求。
+
+**已知缺口（规则层做不到的）**：
+
+- 公司网关 TLS 检查 / 下载扫描 / 响应缓冲 —— 需 IT 对上述域名 Do Not Inspect、关 buffering。
+- 私有仓 `raw.githubusercontent.com` RULE-SET —— 无 PAT 时拉不到；本仓 L2c 因此内联。
+- 嵌套 `*.*.cursorvm.com` —— 用 `DOMAIN-SUFFIX,cursorvm.com` 已覆盖；勿只写单层通配就以为够（那是网关 ACL 的坑，不是 Shadowrocket 后缀规则的坑）。
+
+### 3.5 DNS 与 QUIC
 
 - AI 域名走 **DoH 且经代理解析**（Shadowrocket 的 `#proxy` 后缀），避免污染。
 - mihomo 用 `nameserver-policy` 做分流 DNS：`geosite:cn` 走国内 DoH，`geolocation-!cn` 走国外 DoH。
@@ -98,13 +136,42 @@ livekit.cloud              # 语音/实时对话
 
 ## 四、导入
 
-**Shadowrocket**：在 App 里添加配置 URL。仓库需要是公开的，并且 `main` 上已经有这些文件，否则小火箭拉不到。
+### 4.1 Shadowrocket（iOS）—— 私有仓库现实路径
+
+本仓库是 **private**。小火箭用配置 URL / RULE-SET 访问
+
+```
+https://raw.githubusercontent.com/s1crab/rules/main/...
+```
+
+时，**未附带 GitHub PAT 会 404**，历史 `ai.list` / `china.list` 等 RULE-SET 同样受影响。Cursor / Grok Bot（L2c）已全部 **内联进** `shadowrocket-AI.conf`，因此至少 L2c 不依赖 raw。
+
+**推荐（无公开镜像时）**：
+
+1. 在能访问本仓的电脑上打开 [`shadowrocket-AI.conf`](./shadowrocket-AI.conf)，整文件复制。
+2. iPhone：Shadowrocket → 配置 → **从剪贴板导入** / iCloud Drive 打开该文件；或用隔空投送 / 备忘录同步后再导入。
+3. 首页确认已有名为 `AI节点` 的节点（或把配置里的名字改成你的节点全名）。
+4. 启用配置，打开 **TUN / 增强模式**，连一次 ChatGPT / Cursor 相关域名，在「连接」页确认命中 `🤖 AI 服务`。
+
+**可选（你接受把 token 写进 URL 时）**：
+
+```
+https://<GITHUB_PAT>@raw.githubusercontent.com/s1crab/rules/main/shadowrocket-AI.conf
+```
+
+PAT 需 `repo` 读权限；任何人拿到完整 URL 等于拿到读仓权限，只适合个人设备、勿分享。公开 fork / 镜像后可改回无 token 的 raw。
+
+**若仓库变公开**：可直接用
 
 ```
 https://raw.githubusercontent.com/s1crab/rules/main/shadowrocket-AI.conf
 ```
 
-**mihomo**：把本目录当作配置目录，或把 `mihomo-AI.yaml` 和 `rules/mihomo/` 一起放进 Clash Verge / mihomo 的配置目录，两边的相对路径要保持不变。
+并按需把 L2c 改回 `RULE-SET,.../cursor.list`（列表文件已备好）。
+
+### 4.2 mihomo
+
+把本目录当作配置目录，或把 `mihomo-AI.yaml` 和 `rules/mihomo/` 一起放进 Clash Verge / mihomo 的配置目录，两边的相对路径要保持不变。`cursor` 规则集为本地 `type: file`，不依赖 GitHub。
 
 **必改项（订阅）**：
 
@@ -127,9 +194,10 @@ proxy-providers:
    [metacubexd](https://github.com/MetaCubeX/metacubexd)）里访问 `chatgpt.com`，
    确认命中的是 AI 规则集、策略是 `🤖 AI 服务`。
 2. **看出口**：访问 `ipinfo.io` / `ip.sb`，确认出口 IP 的 ASN 与地区就是 AI 组里那个节点。
-3. **查漏**：依次打开 ChatGPT、Claude、Gemini、Copilot，在连接列表里看有没有
-   **掉进兜底规则**的域名 —— 有的话就是 AI 规则集的漏网之鱼，补进本地规则。
-4. **查顺序**：确认 AI 规则的行号小于 Google / Microsoft / Apple 规则。
+3. **查漏**：依次打开 ChatGPT、Claude、Gemini、Copilot、**Cursor / Grok Bot**，在连接列表里看有没有
+   **掉进兜底规则**的域名 —— 有的话就是 AI / Cursor 规则的漏网之鱼，补进本地规则。
+4. **查顺序**：确认 L2a / L2b / **L2c** 的行号都小于 Google / Microsoft / Apple 规则。
+5. **Cursor 专项**：访问 `api2.cursor.sh`、任意 `*.cursorvm.com` 应走 `🤖 AI 服务`；登录页 `accounts.x.ai` / `accounts.spacex.ai` 同理。若 App 仍卡在 computer setup，先排除公司网关 TLS 检查（见 §3.4）。
 
 ---
 
@@ -142,9 +210,12 @@ proxy-providers:
 | AI 组用 `url-test` / `load-balance` / 多节点 `fallback` | IP 横跳 → 掉登录、风控 | AI 组只放一个节点，用 `select` |
 | 用 `GEOIP` / `IP-CIDR` 判 AI | AI 都在 Cloudflare/Fastly/Azure 上，同段混装，必然误伤 | 只用域名匹配 |
 | `DOMAIN-KEYWORD` 写 `ai`、`gpt`、`claude` | 大面积误伤无关站点 | 只写品牌唯一串，如 `openaicom` |
-| `RULE-SET` 改回上游仓库地址 | 又去信任别人的规则 | 只引用 `s1crab/rules` 里的文件 |
+| `RULE-SET` 改回上游仓库地址 | 又去信任别人的规则 | 只引用本仓文件；私有仓优先内联 / 本地 file |
+| 私有仓仍用无 token 的 raw RULE-SET | 小火箭拉规则失败 / 配置残缺 | 复制整份 `.conf`；或 PAT；或公开镜像 |
+| Cursor 放进 L4 国内直连 | chat / cursorvm 走直连失败 | 保持 L2c → 🤖 AI 服务 |
 | 关掉域名嗅探 | 域名规则全部失效 | 保持开启 |
 | 节点本身是脏 IP / 共享机房 IP | 规则再对也会被风控 | 原生 IP、独享节点优先 |
+| 只放行域名、公司网关仍 TLS 解密 / 缓冲 | Grok Bot computer setup 卡住、SSE 假死 | 网关侧对 Cursor 域 bypass inspection + 关 buffering（规则层无法代劳） |
 
 ---
 
@@ -170,3 +241,5 @@ AI 流量不会被误判，新出的 AI 站点也自动可用，只有少数需�
 - [MetaCubeX/meta-rules-dat](https://github.com/MetaCubeX/meta-rules-dat) — mihomo 用的域名与中国 IP 列表
 - [LOWERTOP/Shadowrocket](https://deepwiki.com/LOWERTOP/Shadowrocket/6.1-configuration-file-format) — Shadowrocket 配置格式说明
 - [Johnshall/Shadowrocket-ADBlock-Rules-Forever](https://github.com/Johnshall/Shadowrocket-ADBlock-Rules-Forever) — 分组与 `policy-regex-filter` 写法参考
+- [Cursor · Grok Bot proxies](https://cursor.com/docs/grok-bot/proxies) — Cursor / Grok Bot 域名与 TLS 检查说明
+- [Cursor · Enterprise network configuration](https://cursor.com/docs/enterprise/network-configuration) — 企业网络 / 流式连通性

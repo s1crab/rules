@@ -1,0 +1,17 @@
+# Cursor / Grok Bot — PROXY via 🤖 AI 服务
+# Official: https://cursor.com/docs/grok-bot/proxies
+#           https://cursor.com/docs/enterprise/network-configuration
+# DOMAIN-SUFFIX covers nested hosts (e.g. *.*.cursorvm.com).
+# Prefer pasting these into the .conf as inline rules when the repo is private
+# (raw.githubusercontent.com RULE-SET needs a public repo or PAT).
+
+DOMAIN-SUFFIX,cursor.sh
+DOMAIN-SUFFIX,cursorvm.com
+DOMAIN-SUFFIX,cursor.com
+DOMAIN-SUFFIX,cursor-cdn.com
+DOMAIN-SUFFIX,cursorapi.com
+DOMAIN,accounts.x.ai
+DOMAIN,accounts.spacex.ai
+DOMAIN-SUFFIX,spacex.ai
+DOMAIN,connectors-gateway.grok.com
+DOMAIN,anysphere-binaries.s3.us-east-1.amazonaws.com
