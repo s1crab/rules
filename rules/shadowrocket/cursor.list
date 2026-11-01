@@ -14,4 +14,6 @@ DOMAIN,accounts.x.ai
 DOMAIN,accounts.spacex.ai
 DOMAIN-SUFFIX,spacex.ai
 DOMAIN,connectors-gateway.grok.com
+DOMAIN-SUFFIX,grokusercontent.com
+DOMAIN-SUFFIX,grokipedia.com
 DOMAIN,anysphere-binaries.s3.us-east-1.amazonaws.com
