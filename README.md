@@ -1,6 +1,12 @@
 # 代理规则整理方案 · 分层分流 + AI 优先
 
-一套可直接导入的两份配置，按同一套设计原则产出一致的分组名与规则顺序。规则是 2026-10-06 的快照，放在本仓库里（含后续 Cursor / Grok Bot 补丁）。**本仓库当前为私有**：小火箭用 `raw.githubusercontent.com` 拉 RULE-SET / 配置 URL 时，未带 PAT 会失败。推荐把 `shadowrocket-AI.conf` 整文件复制进 App / iCloud；mihomo 读取同目录本地文件，不受影响。两边都不再请求上游规则仓库。不含广告拦截。
+一套可直接导入的两份配置，按同一套设计原则产出一致的分组名与规则顺序。规则是 2026-10-06 的快照，放在本仓库里（含后续 Cursor / Grok Bot 补丁）。**本仓库已公开**：小火箭推荐每日直接导入
+
+```
+https://raw.githubusercontent.com/s1-team/rules/main/shadowrocket-AI.conf
+```
+
+该文件即完整日用入口（瘦自维护基座 + AI：L0→L2a/b/c→L3→L4→L5）；L2c（Cursor / Grok Bot，含 `auth.grokusercontent.com` 等）保持内联。mihomo 读取同目录本地文件，不受 raw 影响。两边都不再请求上游规则仓库。默认不含广告拦截。
 
 | 文件 | 客户端 |
 |---|---|
@@ -11,7 +17,7 @@
 
 ## 一、什么叫「科学」：四条判据
 
-1. **单一事实来源** —— 规则以本仓库里的文件为准。mihomo 用 `rules/mihomo/`（`type: file`，运行时不访问 GitHub）。Shadowrocket 不认本地路径：历史 RULE-SET 仍指向 `github.com/s1crab/rules` 的 raw；**私有仓库时 raw 拉不到**，Cursor / Grok Bot 规则已改为 **内联在 `.conf`**，单文件导入即可用。
+1. **单一事实来源** —— 规则以本仓库里的文件为准。mihomo 用 `rules/mihomo/`（`type: file`，运行时不访问 GitHub）。Shadowrocket 不认本地路径：RULE-SET 指向本仓公开 raw（`raw.githubusercontent.com/s1-team/rules`）。Cursor / Grok Bot（L2c）**内联在 `.conf`**，便于单文件清晰与可靠，不依赖额外拉取。
 2. **分层 + 优先级明确** —— 规则自上而下匹配，命中即停，**顺序就是语义**。
 3. **匹配维度与意图匹配** —— 该用域名的用域名，只有静态服务和私网才用 IP。
 4. **可观测、可回滚** —— 能查出某个请求命中了哪条规则；配置进 git，改坏能回退。
@@ -93,8 +99,8 @@ livekit.cloud              # 语音/实时对话
 
 | 模式 | Shadowrocket | mihomo |
 |---|---|---|
-| 主路径 | **内联** `DOMAIN-SUFFIX` / `DOMAIN` 于 `shadowrocket-AI.conf`（私有仓也能单文件导入） | `RULE-SET,cursor` → `rules/mihomo/cursor.list` |
-| 维护副本 | `rules/shadowrocket/cursor.list`（公开镜像或带 PAT 时可改 RULE-SET） | 同上 |
+| 主路径 | **内联** `DOMAIN-SUFFIX` / `DOMAIN` 于 `shadowrocket-AI.conf`（单文件清晰、少一次远程拉取） | `RULE-SET,cursor` → `rules/mihomo/cursor.list` |
+| 维护副本 | `rules/shadowrocket/cursor.list`（需要时可改 RULE-SET 引用） | 同上 |
 
 **覆盖清单（优先宽匹配）**：
 
@@ -118,7 +124,7 @@ livekit.cloud              # 语音/实时对话
 **已知缺口（规则层做不到的）**：
 
 - 公司网关 TLS 检查 / 下载扫描 / 响应缓冲 —— 需 IT 对上述域名 Do Not Inspect、关 buffering。
-- 私有仓 `raw.githubusercontent.com` RULE-SET —— 无 PAT 时拉不到；本仓 L2c 因此内联。
+- L2c 刻意内联 —— 为单文件可靠性与可读性；`cursor.list` 仍作维护副本，非因 raw 不可用。
 - 嵌套 `*.*.cursorvm.com` —— 用 `DOMAIN-SUFFIX,cursorvm.com` 已覆盖；勿只写单层通配就以为够（那是网关 ACL 的坑，不是 Shadowrocket 后缀规则的坑）。
 
 ### 3.5 DNS 与 QUIC
@@ -136,38 +142,24 @@ livekit.cloud              # 语音/实时对话
 
 ## 四、导入
 
-### 4.1 Shadowrocket（iOS）—— 私有仓库现实路径
+### 4.1 Shadowrocket（iOS）—— 公开 raw 日用导入
 
-本仓库是 **private**。小火箭用配置 URL / RULE-SET 访问
-
-```
-https://raw.githubusercontent.com/s1crab/rules/main/...
-```
-
-时，**未附带 GitHub PAT 会 404**，历史 `ai.list` / `china.list` 等 RULE-SET 同样受影响。Cursor / Grok Bot（L2c）已全部 **内联进** `shadowrocket-AI.conf`，因此至少 L2c 不依赖 raw。
-
-**推荐（无公开镜像时）**：
-
-1. 在能访问本仓的电脑上打开 [`shadowrocket-AI.conf`](./shadowrocket-AI.conf)，整文件复制。
-2. iPhone：Shadowrocket → 配置 → **从剪贴板导入** / iCloud Drive 打开该文件；或用隔空投送 / 备忘录同步后再导入。
-3. 首页确认已有名为 `AI节点` 的节点（或把配置里的名字改成你的节点全名）。
-4. 启用配置，打开 **TUN / 增强模式**，连一次 ChatGPT / Cursor 相关域名，在「连接」页确认命中 `🤖 AI 服务`。
-
-**可选（你接受把 token 写进 URL 时）**：
+本仓库是 **public**。推荐每日用下面这一条配置 URL（完整入口 = 基座 + AI；L2c 已内联）：
 
 ```
-https://<GITHUB_PAT>@raw.githubusercontent.com/s1crab/rules/main/shadowrocket-AI.conf
+https://raw.githubusercontent.com/s1-team/rules/main/shadowrocket-AI.conf
 ```
 
-PAT 需 `repo` 读权限；任何人拿到完整 URL 等于拿到读仓权限，只适合个人设备、勿分享。公开 fork / 镜像后可改回无 token 的 raw。
+小火箭内：配置 → 从 URL 下载 / 更新，指向上述地址。RULE-SET（`ai.list` / `proxy.list` / `vendor-direct.list` / `china.list`）同样走 `raw.githubusercontent.com/s1-team/rules/...`。
 
-**若仓库变公开**：可直接用
+导入后：
 
-```
-https://raw.githubusercontent.com/s1crab/rules/main/shadowrocket-AI.conf
-```
+1. 首页确认已有名为 `AI节点` 的节点（或把配置里的名字改成你的节点全名）。
+2. 启用配置，打开 **TUN / 增强模式**，连一次 ChatGPT / Cursor 相关域名，在「连接」页确认命中 `🤖 AI 服务`。
 
-并按需把 L2c 改回 `RULE-SET,.../cursor.list`（列表文件已备好）。
+**可选（离线 / 剪贴板）**：打开 [`shadowrocket-AI.conf`](./shadowrocket-AI.conf) 整文件复制，Shadowrocket → 配置 → **从剪贴板导入** / iCloud Drive；适合无网或临时设备。
+
+**遗留回退（仅当 raw 不可用或你仍用私有 fork）**：可将 PAT 写进 URL（`https://<GITHUB_PAT>@raw.githubusercontent.com/...`），需 `repo` 读权限；完整 URL 等于读仓权限，只适合个人设备、勿分享。日常请用上面的公开 raw，不必 PAT。
 
 ### 4.2 mihomo
 
@@ -210,8 +202,8 @@ proxy-providers:
 | AI 组用 `url-test` / `load-balance` / 多节点 `fallback` | IP 横跳 → 掉登录、风控 | AI 组只放一个节点，用 `select` |
 | 用 `GEOIP` / `IP-CIDR` 判 AI | AI 都在 Cloudflare/Fastly/Azure 上，同段混装，必然误伤 | 只用域名匹配 |
 | `DOMAIN-KEYWORD` 写 `ai`、`gpt`、`claude` | 大面积误伤无关站点 | 只写品牌唯一串，如 `openaicom` |
-| `RULE-SET` 改回上游仓库地址 | 又去信任别人的规则 | 只引用本仓文件；私有仓优先内联 / 本地 file |
-| 私有仓仍用无 token 的 raw RULE-SET | 小火箭拉规则失败 / 配置残缺 | 复制整份 `.conf`；或 PAT；或公开镜像 |
+| `RULE-SET` 改回上游仓库地址 | 又去信任别人的规则 | 只引用本仓 `s1-team/rules` 文件；mihomo 用本地 `type: file` |
+| 把 RULE-SET / 配置 URL 仍写成旧 owner（如 `s1crab`）或失效镜像 | 拉规则 404 / 配置残缺 | 改用 `raw.githubusercontent.com/s1-team/rules/...`；离线时再复制整份 `.conf` |
 | Cursor 放进 L4 国内直连 | chat / cursorvm 走直连失败 | 保持 L2c → 🤖 AI 服务 |
 | 关掉域名嗅探 | 域名规则全部失效 | 保持开启 |
 | 节点本身是脏 IP / 共享机房 IP | 规则再对也会被风控 | 原生 IP、独享节点优先 |
