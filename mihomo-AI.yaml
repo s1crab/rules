@@ -100,11 +100,11 @@ proxy-groups:
     interval: 600
     tolerance: 50
 
-  # 只绑定订阅里名字正好是 AI节点 的那一台。select 不会自动换节点。
-  - name: ai
+  # 只绑定订阅里名字正好是两字母 token ai 的那一台（大小写不敏感：ai / AI / Ai …）。select 不会自动换节点。
+  - name: AI
     type: select
     use: [sub]
-    filter: "^AI节点$"
+    filter: "(?i)^ai$"
 
 # ── 本地规则集。path 相对本文件所在目录，运行时不下载 ─────────────────────
 rule-providers:
@@ -229,15 +229,15 @@ rules:
   - DOMAIN-SUFFIX,sensetime.com,DIRECT
 
   # ══ L2b 境外 AI ══【必须排在 google / microsoft / apple 之前】
-  - RULE-SET,ai-not-cn,ai
-  - RULE-SET,openai,ai
-  - RULE-SET,anthropic,ai
-  - RULE-SET,google-gemini,ai
-  - RULE-SET,aina,ai
+  - RULE-SET,ai-not-cn,AI
+  - RULE-SET,openai,AI
+  - RULE-SET,anthropic,AI
+  - RULE-SET,google-gemini,AI
+  - RULE-SET,aina,AI
 
   # ══ L2c Cursor / Grok Bot ══【必须排在 google / microsoft / apple 之前；勿进 cn DIRECT】
   # 官方：https://cursor.com/docs/grok-bot/proxies
-  - RULE-SET,cursor,ai
+  - RULE-SET,cursor,AI
 
   # ══ L3 大分类 ══
   - RULE-SET,google,节点选择
