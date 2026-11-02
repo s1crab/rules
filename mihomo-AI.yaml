@@ -88,12 +88,12 @@ proxy-providers:
 # ── 策略组 ──────────────────────────────────────────────────────────────────
 proxy-groups:
   # 通用：url-test 按延迟自动切换，只服务「非 AI」流量
-  - name: 🚀 节点选择
+  - name: 节点选择
     type: select
     use: [sub]
-    proxies: [⚡ 自动测速, DIRECT]
+    proxies: [自动测速, DIRECT]
 
-  - name: ⚡ 自动测速
+  - name: 自动测速
     type: url-test
     use: [sub]
     url: http://www.gstatic.com/generate_204
@@ -101,7 +101,7 @@ proxy-groups:
     tolerance: 50
 
   # 只绑定订阅里名字正好是 AI节点 的那一台。select 不会自动换节点。
-  - name: 🤖 AI 服务
+  - name: ai
     type: select
     use: [sub]
     filter: "^AI节点$"
@@ -229,21 +229,21 @@ rules:
   - DOMAIN-SUFFIX,sensetime.com,DIRECT
 
   # ══ L2b 境外 AI ══【必须排在 google / microsoft / apple 之前】
-  - RULE-SET,ai-not-cn,🤖 AI 服务
-  - RULE-SET,openai,🤖 AI 服务
-  - RULE-SET,anthropic,🤖 AI 服务
-  - RULE-SET,google-gemini,🤖 AI 服务
-  - RULE-SET,aina,🤖 AI 服务
+  - RULE-SET,ai-not-cn,ai
+  - RULE-SET,openai,ai
+  - RULE-SET,anthropic,ai
+  - RULE-SET,google-gemini,ai
+  - RULE-SET,aina,ai
 
   # ══ L2c Cursor / Grok Bot ══【必须排在 google / microsoft / apple 之前；勿进 cn DIRECT】
   # 官方：https://cursor.com/docs/grok-bot/proxies
-  - RULE-SET,cursor,🤖 AI 服务
+  - RULE-SET,cursor,ai
 
   # ══ L3 大分类 ══
-  - RULE-SET,google,🚀 节点选择
-  - RULE-SET,youtube,🚀 节点选择
-  - RULE-SET,telegram,🚀 节点选择
-  - RULE-SET,github,🚀 节点选择
+  - RULE-SET,google,节点选择
+  - RULE-SET,youtube,节点选择
+  - RULE-SET,telegram,节点选择
+  - RULE-SET,github,节点选择
   - RULE-SET,microsoft,DIRECT
   - RULE-SET,apple,DIRECT
 
@@ -252,4 +252,4 @@ rules:
   - RULE-SET,geoip-cn,DIRECT,no-resolve
 
   # ══ L5 兜底 ══
-  - MATCH,🚀 节点选择
+  - MATCH,节点选择

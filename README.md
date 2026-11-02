@@ -34,11 +34,11 @@ https://raw.githubusercontent.com/s1-team/rules/main/shadowrocket-AI.conf
 |---|---|---|---|
 | L0 | 私网 CIDR、`.local` | DIRECT | 必须最先，否则内网设备会被代理 |
 | L2a | **境内 AI** 域名（DeepSeek、豆包、Kimi、通义…） | DIRECT | 境内 AI 走代理会变慢、掉线甚至不可用 |
-| L2b | **境外 AI** 规则集 | 🤖 AI 服务 | **必须早于 L3**，见下 |
-| L2c | **Cursor / Grok Bot**（内联 + `cursor.list`） | 🤖 AI 服务 | **必须早于 L3**；勿进 L4 国内直连 |
+| L2b | **境外 AI** 规则集 | ai | **必须早于 L3**，见下 |
+| L2c | **Cursor / Grok Bot**（内联 + `cursor.list`） | ai | **必须早于 L3**；勿进 L4 国内直连 |
 | L3 | Google / YouTube / Telegram / GitHub / Microsoft / Apple | 代理或直连 | 用途明确、地区不敏感 |
 | L4 | `ChinaMax` / `GEOSITE,cn` + `GEOIP,CN` | DIRECT | 国内直连，避免绕路 |
-| L5 | `FINAL` / `MATCH` | 🚀 节点选择 | 兜底：新站点自动可用 |
+| L5 | `FINAL` / `MATCH` | 节点选择 | 兜底：新站点自动可用 |
 
 ### 为什么 AI 必须在 L3 之前
 
@@ -53,7 +53,7 @@ https://raw.githubusercontent.com/s1-team/rules/main/shadowrocket-AI.conf
 ### 3.1 策略组：AI 只绑定一个节点
 
 ```
-🤖 AI 服务 = select, AI节点
+ai = select, AI节点
 ```
 
 境外 AI 固定走这一台，出口 IP 不变。`select` 不会因为延迟自己换节点。`url-test` 会为了最低延迟来回切换，IP 一变，ChatGPT / Claude 就会掉登录。
@@ -155,7 +155,7 @@ https://raw.githubusercontent.com/s1-team/rules/main/shadowrocket-AI.conf
 导入后：
 
 1. 首页确认已有名为 `AI节点` 的节点（或把配置里的名字改成你的节点全名）。
-2. 启用配置，打开 **TUN / 增强模式**，连一次 ChatGPT / Cursor 相关域名，在「连接」页确认命中 `🤖 AI 服务`。
+2. 启用配置，打开 **TUN / 增强模式**，连一次 ChatGPT / Cursor 相关域名，在「连接」页确认命中 `ai`。
 
 **可选（离线 / 剪贴板）**：打开 [`shadowrocket-AI.conf`](./shadowrocket-AI.conf) 整文件复制，Shadowrocket → 配置 → **从剪贴板导入** / iCloud Drive；适合无网或临时设备。
 
@@ -184,12 +184,12 @@ proxy-providers:
 
 1. **看命中**：Shadowrocket「连接」页 / mihomo 的 `external-controller`（如
    [metacubexd](https://github.com/MetaCubeX/metacubexd)）里访问 `chatgpt.com`，
-   确认命中的是 AI 规则集、策略是 `🤖 AI 服务`。
+   确认命中的是 AI 规则集、策略是 `ai`。
 2. **看出口**：访问 `ipinfo.io` / `ip.sb`，确认出口 IP 的 ASN 与地区就是 AI 组里那个节点。
 3. **查漏**：依次打开 ChatGPT、Claude、Gemini、Copilot、**Cursor / Grok Bot**，在连接列表里看有没有
    **掉进兜底规则**的域名 —— 有的话就是 AI / Cursor 规则的漏网之鱼，补进本地规则。
 4. **查顺序**：确认 L2a / L2b / **L2c** 的行号都小于 Google / Microsoft / Apple 规则。
-5. **Cursor 专项**：访问 `api2.cursor.sh`、任意 `*.cursorvm.com` 应走 `🤖 AI 服务`；登录页 `accounts.x.ai` / `accounts.spacex.ai` 同理。若 App 仍卡在 computer setup，先排除公司网关 TLS 检查（见 §3.4）。
+5. **Cursor 专项**：访问 `api2.cursor.sh`、任意 `*.cursorvm.com` 应走 `ai`；登录页 `accounts.x.ai` / `accounts.spacex.ai` 同理。若 App 仍卡在 computer setup，先排除公司网关 TLS 检查（见 §3.4）。
 
 ---
 
@@ -204,7 +204,7 @@ proxy-providers:
 | `DOMAIN-KEYWORD` 写 `ai`、`gpt`、`claude` | 大面积误伤无关站点 | 只写品牌唯一串，如 `openaicom` |
 | `RULE-SET` 改回上游仓库地址 | 又去信任别人的规则 | 只引用本仓 `s1-team/rules` 文件；mihomo 用本地 `type: file` |
 | 把 RULE-SET / 配置 URL 仍写成旧 owner（如 `s1crab`）或失效镜像 | 拉规则 404 / 配置残缺 | 改用 `raw.githubusercontent.com/s1-team/rules/...`；离线时再复制整份 `.conf` |
-| Cursor 放进 L4 国内直连 | chat / cursorvm 走直连失败 | 保持 L2c → 🤖 AI 服务 |
+| Cursor 放进 L4 国内直连 | chat / cursorvm 走直连失败 | 保持 L2c → ai |
 | 关掉域名嗅探 | 域名规则全部失效 | 保持开启 |
 | 节点本身是脏 IP / 共享机房 IP | 规则再对也会被风控 | 原生 IP、独享节点优先 |
 | 只放行域名、公司网关仍 TLS 解密 / 缓冲 | Grok Bot computer setup 卡住、SSE 假死 | 网关侧对 Cursor 域 bypass inspection + 关 buffering（规则层无法代劳） |
